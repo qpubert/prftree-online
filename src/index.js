@@ -3,6 +3,54 @@ import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
 import './index.css';
 
+class InputPane extends React.Component {
+
+}
+
+class OutputPane extends React.Component {
+  
+}
+
+class LiveEditor extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      rootNode: {
+        label: "",
+        rule_name: "",
+        assumptions: [],
+        conclusion: null
+      }
+    };
+  }
+
+  generateNodeSource(node) {
+    let nodeSource = '\\prftree';
+    
+    // add assumptions
+    nodeSource += node.assumptions.map((assumptionNode) => {
+      return `{${this.generateNodeSource(assumptionNode)}}`;
+    });
+
+    // add conclusion
+    nodeSource += this.generateNodeSource(node.conclusion);
+
+    return nodeSource;
+  }
+
+  render() {
+    const rootNode = this.state.rootNode;
+
+    return (
+      <div className="live-editor">
+        <InputPane rootNode={rootNode} />
+        <OutputPane outputSource={generateNodeSource(rootNode)} />
+      </div>
+    )
+  }
+}
+
+/*
 function Square(props) {
   return (
     <button
@@ -143,8 +191,6 @@ class Game extends React.Component {
 
 // ========================================
 
-ReactDOM.render(<Game />,
-  document.getElementById('root'));
 
 function calculateWinner(squares) {
   const lines = [
@@ -165,3 +211,7 @@ function calculateWinner(squares) {
   }
   return null;
 }
+*/
+
+ReactDOM.render(<LiveEditor />,
+  document.getElementById('root'));
