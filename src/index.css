@@ -1,3 +1,135 @@
+.live-editor {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    top: 40px;
+    bottom: 20px;
+    
+    display: flex;
+    flex-direction: row;
+}
+
+.pane {
+    border: 1px solid black;
+    padding: 10px;
+
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1em;
+}
+
+.input-pane {
+    overflow: scroll;
+    display: flex;
+    align-items: center;
+} 
+
+.tree-wrapper {
+    width: fit-content;
+    height: fit-content;
+    margin: auto;
+}
+
+.output-pane {
+    resize: none;
+}
+
+.node-wrapper {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    margin-right: 0.5em;
+}
+
+.node {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin-left: 5px;
+    margin-right: 5px;
+
+    min-width: 50px;
+}
+
+.assumptions {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-end;
+}
+
+.assumptions button {
+    font-family: 'Courier New', Courier, monospace;
+    width: 2ch;
+    border: 1px solid transparent;
+    padding: 0;
+    margin-bottom: 5px;
+    margin-left: auto;
+    margin-right: auto;
+    background-color: transparent;
+}
+
+.assumptions button:hover {
+    background-color: lightgray;
+}
+
+.label {
+    height: fit-content;
+    padding-bottom: 1em;
+}
+
+.label input {
+    border: 1px solid transparent;
+    margin: 1px;
+    padding: 0;
+
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1em;
+    text-align: center;
+}
+
+.rule-name {
+    height: fit-content;
+    padding-bottom: 1em;
+}
+
+.rule-name input {
+    border: 1px solid transparent;
+    margin: 1px;
+    padding: 0;
+
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1em;
+    text-align: center;
+}
+
+.inference-line {
+    border: 1px solid black;
+
+    top: 2px;
+    bottom: 2px;
+    left: 0px;
+    right: 0px;
+}
+.conclusion {
+    padding: 2px;
+
+    text-align: center;
+}
+
+.conclusion input {
+    border: 1px solid transparent;
+    margin: 1px;
+    padding: 0;
+
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1em;
+    text-align: center;
+}
+
+.conclusion input:focus {
+    border: 1px solid grey;
+}
+
 /*
 body {
     font: 14px "Century Gothic", Futura, sans-serif;

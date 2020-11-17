@@ -1,14 +1,40 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
+import Split from 'react-split';
+import { v4 as uuidv4 } from 'uuid';
 import './index.css';
 
 class InputPane extends React.Component {
+  render() {
+    return (
+      <div className="input-pane pane">
+        <div className="tree-wrapper">
+          {this.props.rootNode}
+        </div>
+      </div>
+    )
+  }
+}
 
+InputPane.propTypes = {
+  rootNode: PropTypes.object.isRequired,
 }
 
 class OutputPane extends React.Component {
-  
+  render() {
+    return (
+      <textarea
+        className="output-pane pane"
+        value={this.props.outputSource}
+        readOnly
+      />
+    )
+  }
+}
+
+OutputPane.propTypes = {
+  outputSource: PropTypes.string.isRequired,
 }
 
 class LiveEditor extends React.Component {
@@ -16,24 +42,195 @@ class LiveEditor extends React.Component {
     super(props);
     this.state = {
       rootNode: {
-        label: "",
-        rule_name: "",
+        parent: null,
+        id: uuidv4(),
         assumptions: [],
-        conclusion: null
-      }
+        label: '',
+        ruleName: '',
+        conclusion: ''
+      },
     };
   }
 
-  generateNodeSource(node) {
-    let nodeSource = '\\prftree';
-    
-    // add assumptions
-    nodeSource += node.assumptions.map((assumptionNode) => {
-      return `{${this.generateNodeSource(assumptionNode)}}`;
-    });
+  renderNode(node) {
+    const label = (
+      <input
+        type='text'
+        placeholder='.'
+        defaultValue={node.label}
+        style={{ width: `${Math.max(1, node.label.length)}ch` }}
+        onInput={(event) => {
+          let rootNodeCopy = { ...this.state.rootNode };
 
-    // add conclusion
-    nodeSource += this.generateNodeSource(node.conclusion);
+          if (node.id === this.state.rootNode.id) {
+            rootNodeCopy.label = event.target.value;
+          } else {
+            node.label = event.target.value;
+          }
+
+          this.setState({
+            rootNode: rootNodeCopy
+          });
+        }}
+      />
+    );
+
+    const ruleName = (
+      <input
+        type='text'
+        placeholder='.'
+        defaultValue={node.ruleName}
+        style={{ width: `${Math.max(1, node.ruleName.length)}ch` }}
+        onInput={(event) => {
+          let rootNodeCopy = { ...this.state.rootNode };
+
+          if (node.id === this.state.rootNode.id) {
+            rootNodeCopy.ruleName = event.target.value;
+          } else {
+            node.ruleName = event.target.value;
+          }
+
+          this.setState({
+            rootNode: rootNodeCopy
+          });
+        }}
+      />
+    );
+
+    const conclusion = (
+      <input
+        type='text'
+        placeholder='...'
+        defaultValue={node.conclusion}
+        style={{ width: `${Math.max(3, node.conclusion.length)}ch` }}
+        onInput={(event) => {
+          let rootNodeCopy = { ...this.state.rootNode };
+
+          if (node.id === this.state.rootNode.id) {
+            rootNodeCopy.conclusion = event.target.value;
+          } else {
+            node.conclusion = event.target.value;
+          }
+
+          this.setState({
+            rootNode: rootNodeCopy
+          });
+        }}
+      />
+    );
+
+    return (
+      <div
+        className='node-wrapper'
+        key={node.id}
+      >
+        <div className='label'>
+          {label}
+        </div>
+        <div className='node'>
+          <div className='assumptions'>
+            {node.assumptions.map((ass, index) => this.renderNode(ass, index))}
+            <button
+              onClick={() => {
+                let rootNodeCopy = { ...this.state.rootNode };
+
+                const newAssumption = {
+                  parent: node,
+                  id: uuidv4(),
+                  assumptions: [],
+                  label: '',
+                  ruleName: '',
+                  conclusion: ''
+                };
+
+                if (node.id === this.state.rootNode.id) {
+                  rootNodeCopy.assumptions = rootNodeCopy.assumptions.concat([newAssumption]);
+                } else {
+                  node.assumptions = node.assumptions.concat([newAssumption]);
+                }
+
+                this.setState({
+                  rootNode: rootNodeCopy
+                });
+              }}
+            >
+              +
+          </button>
+            {node.parent ? <button
+              onClick={() => {
+                let rootNodeCopy = { ...this.state.rootNode };
+
+                if (node.parent.id === this.state.rootNode.id) {
+                  rootNodeCopy.assumptions = rootNodeCopy.assumptions.filter((ass) => {
+                    return ass.id !== node.id;
+                  });
+                } else {
+                  node.parent.assumptions = node.parent.assumptions.filter((ass) => {
+                    return ass.id !== node.id;
+                  });
+                }
+
+                this.setState({
+                  rootNode: rootNodeCopy
+                });
+              }}
+            >
+              -
+          </button> : null}
+          </div >
+          <div className='inference-line'>
+
+          </div>
+          <div
+            className='conclusion'
+          >
+            {conclusion}
+          </div>
+        </div>
+        <div className='rule-name'>
+          {ruleName}
+        </div>
+      </div >
+    );
+  }
+
+  generateNodeSource(node, tablevel, tab) {
+    let nodeSource = tab.repeat(tablevel) + `\\prftree`;
+
+    if (node.label !== '') {
+      nodeSource += `[l]{${node.label}}`;
+    }
+
+    if (node.ruleName !== '') {
+      nodeSource += `[r]{${node.ruleName}}`;
+    }
+
+    nodeSource += '\n';
+
+    if (node.assumptions.length === 0) {
+
+      // add conclusion
+      nodeSource += tab.repeat(tablevel);
+      nodeSource += `{ ${node.conclusion} }`;
+
+    } else {
+
+      // add assumptions
+      node.assumptions.map((assumptionNode) => {
+        nodeSource += tab.repeat(tablevel);
+        nodeSource += '{\n';
+
+        nodeSource += `${this.generateNodeSource(assumptionNode, tablevel + 1, tab)}\n`;
+
+        nodeSource += tab.repeat(tablevel);
+        nodeSource += '}\n';
+      });
+
+      // add conclusion
+      nodeSource += tab.repeat(tablevel);
+      nodeSource += `{ ${node.conclusion} }\n`;
+    }
+
 
     return nodeSource;
   }
@@ -42,10 +239,21 @@ class LiveEditor extends React.Component {
     const rootNode = this.state.rootNode;
 
     return (
-      <div className="live-editor">
-        <InputPane rootNode={rootNode} />
-        <OutputPane outputSource={generateNodeSource(rootNode)} />
-      </div>
+      <Split
+        className="live-editor"
+        sizes={[50, 50]}
+        minSize={100}
+        expandToMin={false}
+        gutterSize={10}
+        gutterAlign="center"
+        snapOffset={30}
+        dragInterval={1}
+        direction="horizontal"
+        cursor="col-resize"
+      >
+        <InputPane rootNode={this.renderNode(rootNode, [])} />
+        <OutputPane outputSource={this.generateNodeSource(rootNode, 0, '    ')} />
+      </Split>
     )
   }
 }
