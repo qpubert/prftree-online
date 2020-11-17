@@ -211,7 +211,7 @@ class LiveEditor extends React.Component {
 
       // add conclusion
       nodeSource += tab.repeat(tablevel);
-      nodeSource += `{ ${node.conclusion} }`;
+      nodeSource += `{ ${node.conclusion} }\n`;
 
     } else {
 
@@ -220,7 +220,7 @@ class LiveEditor extends React.Component {
         nodeSource += tab.repeat(tablevel);
         nodeSource += '{\n';
 
-        nodeSource += `${this.generateNodeSource(assumptionNode, tablevel + 1, tab)}\n`;
+        nodeSource += `${this.generateNodeSource(assumptionNode, tablevel + 1, tab)}`;
 
         nodeSource += tab.repeat(tablevel);
         nodeSource += '}\n';
@@ -230,7 +230,6 @@ class LiveEditor extends React.Component {
       nodeSource += tab.repeat(tablevel);
       nodeSource += `{ ${node.conclusion} }\n`;
     }
-
 
     return nodeSource;
   }
