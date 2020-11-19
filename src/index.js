@@ -8,18 +8,45 @@ import './index.css';
 
 class InputPane extends React.Component {
   render() {
-    return (
-      <div className="input-pane pane">
+    const inputPane = (
+      <div
+        className="input-pane pane"
+        onClick={this.props.onViewClick}
+      >
         <div className="tree-wrapper">
           {this.props.rootNode}
         </div>
       </div>
-    )
+    );
+
+    return (
+      <Split
+        className="left-pane"
+        sizes={[80, 20]}
+        minSize={0}
+        expandToMin={false}
+        gutterSize={10}
+        gutterAlign="center"
+        snapOffset={30}
+        dragInterval={1}
+        direction="vertical"
+        cursor="row-resize"
+      >
+        {inputPane}
+        <textarea
+          className="error-message-pane pane"
+          value={this.props.errorMsg}
+          readOnly
+        />
+      </Split>
+    );
   }
 }
 
 InputPane.propTypes = {
   rootNode: PropTypes.object.isRequired,
+  errorMsg: PropTypes.string.isRequired,
+  onViewClick: PropTypes.func.isRequired,
 }
 
 class OutputPane extends React.Component {
@@ -41,272 +68,216 @@ OutputPane.propTypes = {
 class LiveEditor extends React.Component {
   constructor(props) {
     super(props);
+    this.currentLatexInputRef = React.createRef();
     this.state = {
-      rootNode: {
-        parent: null,
-        id: uuidv4(),
-        assumptions: [],
-        conclusionFocused: false,
-        labelFocused: false,
-        ruleNameFocused: false,
-        label: '',
-        ruleName: '',
-        conclusion: ''
-      },
+      rootNode: this.createBlankNode(),
+      focusedInput: null,
+      focusWasPerformed: false,
     };
   }
 
+  createBlankNode(parent = null) {
+    return {
+      parent: parent,
+      id: uuidv4(),
+
+      assumptions: [],
+      labelInput: this.createBlankLatexInput(),
+      ruleNameInput: this.createBlankLatexInput(),
+      conclusionInput: this.createBlankLatexInput(),
+
+      lineType: 'single',
+      lineDoubled: false
+    };
+  }
+
+  createBlankLatexInput(initialValue = '') {
+    return {
+      id: uuidv4(),
+      value: initialValue,
+      errorMsg: ''
+    };
+  }
+
+  updateNodeStateOnEvent(node, func) {
+    return (event) => {
+      let rootNodeCopy = { ...this.state.rootNode };
+
+      if (node.id === this.state.rootNode.id) {
+        func(rootNodeCopy, event);
+      } else {
+        func(node, event);
+      }
+
+      this.setState({
+        rootNode: rootNodeCopy
+      });
+    };
+  }
+
+  renderLatexInput(node, latexInput, smallTextModeEnabled = true) {
+    const dots = smallTextModeEnabled ? '?' : '?';
+    const focused = this.state.focusedInput && latexInput.id == this.state.focusedInput.id;
+    const latexHidden = focused || latexInput.errorMsg !== '';
+
+    return (
+      <div
+        className='latex-input-wrapper'
+        onClick={(event) => {
+          event.stopPropagation();
+        }}
+      >
+        <div
+          className='latex-input-output'
+          tabIndex={0}
+          onFocus={(_) => {
+            this.setState({
+              focusedInput: latexInput,
+              focusWasPerformed: false,
+            });
+          }}
+          hidden={latexHidden}
+        >
+          <MathComponent
+            display={false}
+            tex={smallTextModeEnabled ?
+              `\\small{\\text{${latexInput.value.length === 0 ? dots : latexInput.value}}}` :
+              `${latexInput.value.length === 0 ? dots : latexInput.value}`
+            }
+            onError={this.updateNodeStateOnEvent(node, (_, errorMsg) => {
+              latexInput.errorMsg = errorMsg;
+            })}
+            onSuccess={this.updateNodeStateOnEvent(node, (_, errorMsg) => {
+              latexInput.errorMsg = '';
+            })}
+          />
+        </div>
+        {latexHidden && <div className='latex-input-input'>
+          <input
+            className={latexInput.errorMsg === '' ? '' : 'invalid-latex-input'}
+            type='text'
+            placeholder={dots}
+            defaultValue={latexInput.value}
+            style={{ width: `${Math.max(dots.length, latexInput.value.length)}ch` }}
+            onInput={this.updateNodeStateOnEvent(node, (_, event) => {
+              latexInput.value = event.target.value;
+            })}
+            ref={focused ? this.currentLatexInputRef : null}
+            onFocus={() => {
+              this.setState({
+                focusedInput: latexInput,
+              });
+            }}
+          />
+        </div>}
+      </div>
+    );
+  }
+
+  componentDidUpdate() {
+    console.log("component did update");
+    if (this.currentLatexInputRef.current && !this.state.focusWasPerformed) {
+      this.currentLatexInputRef.current.focus();
+      this.currentLatexInputRef.current.setSelectionRange(0, this.currentLatexInputRef.current.value.length);
+      this.setState({
+        focusWasPerformed: true
+      });
+    }
+  }
+
   renderNode(node) {
-    const label = (!node.labelFocused) ? (
-      <MathComponent
-        display={false}
-        tex={`\\small{\\text{${node.label.length === 0 ? '.' : node.label}}}`}
-      />
-    ) : (
-        <input
-          type='text'
-          placeholder='.'
-          defaultValue={node.label}
-          style={{ width: `${Math.max(1, node.label.length)}ch` }}
-          onInput={(event) => {
-            let rootNodeCopy = { ...this.state.rootNode };
-
-            if (node.id === this.state.rootNode.id) {
-              rootNodeCopy.label = event.target.value;
-            } else {
-              node.label = event.target.value;
-            }
-
-            this.setState({
-              rootNode: rootNodeCopy
-            });
-          }}
-        />
-      );
-
-    const ruleName = (!node.ruleNameFocused) ? (
-      <MathComponent
-        display={false}
-        tex={`\\small{\\text{${node.ruleName.length === 0 ? '.' : node.ruleName}}}`}
-      />
-    ) : (
-        <input
-          type='text'
-          placeholder='.'
-          defaultValue={node.ruleName}
-          style={{ width: `${Math.max(1, node.ruleName.length)}ch` }}
-          onInput={(event) => {
-            let rootNodeCopy = { ...this.state.rootNode };
-
-            if (node.id === this.state.rootNode.id) {
-              rootNodeCopy.ruleName = event.target.value;
-            } else {
-              node.ruleName = event.target.value;
-            }
-
-            this.setState({
-              rootNode: rootNodeCopy
-            });
-          }}
-        />
-      );
-
-    const conclusion = (!node.conclusionFocused) ? (
-      <MathComponent
-        display={false}
-        tex={node.conclusion.length === 0 ? '...' : node.conclusion}
-      />
-    ) : (
-        <input
-          type='text'
-          placeholder='...'
-          defaultValue={node.conclusion}
-          style={{ width: `${Math.max(3, node.conclusion.length)}ch` }}
-          onInput={(event) => {
-            let rootNodeCopy = { ...this.state.rootNode };
-
-            if (node.id === this.state.rootNode.id) {
-              rootNodeCopy.conclusion = event.target.value;
-            } else {
-              node.conclusion = event.target.value;
-            }
-
-            this.setState({
-              rootNode: rootNodeCopy
-            });
-          }}
-        />
-      );
+    const proofSummary = node.lineDoubled && node.lineType === 'none';
 
     return (
       <div
         className='node-wrapper'
         key={node.id}
       >
-        <div
-          className='label'
-          onBlur={() => {
-            let rootNodeCopy = { ...this.state.rootNode };
-
-            if (node.id === this.state.rootNode.id) {
-              rootNodeCopy.labelFocused = false;
-            } else {
-              node.labelFocused = false;
-            }
-
-            this.setState({
-              rootNode: rootNodeCopy
-            });
-          }}
-          onClick={() => {
-            let rootNodeCopy = { ...this.state.rootNode };
-
-            if (node.id === this.state.rootNode.id) {
-              rootNodeCopy.labelFocused = true;
-            } else {
-              node.labelFocused = true;
-            }
-
-            this.setState({
-              rootNode: rootNodeCopy
-            });
-          }}
-        >
-          {label}
-        </div>
+        {!proofSummary &&
+          <div className={`label`}>
+            {this.renderLatexInput(node, node.labelInput, true)}
+          </div>}
         <div className='node'>
-          <div className='assumptions'>
+          <div className={`assumptions ${node.assumptions.length === 0 ? '' : 'not-empty-assumptions'}`}>
             {node.assumptions.map((ass, index) => this.renderNode(ass, index))}
             <button
-              onClick={() => {
-                let rootNodeCopy = { ...this.state.rootNode };
-
-                const newAssumption = {
-                  parent: node,
-                  id: uuidv4(),
-                  conclusionFocused: false,
-                  labelFocused: false,
-                  ruleNameFocused: false,
-                  assumptions: [],
-                  label: '',
-                  ruleName: '',
-                  conclusion: ''
-                };
-
-                if (node.id === this.state.rootNode.id) {
-                  rootNodeCopy.assumptions = rootNodeCopy.assumptions.concat([newAssumption]);
-                } else {
-                  node.assumptions = node.assumptions.concat([newAssumption]);
-                }
-
-                this.setState({
-                  rootNode: rootNodeCopy
-                });
-              }}
+              onClick={this.updateNodeStateOnEvent(node, (node) => {
+                let newAssumption = this.createBlankNode(node);
+                node.assumptions = node.assumptions.concat([newAssumption]);
+              })}
             >
               +
           </button>
             {node.parent ? <button
-              onClick={() => {
-                let rootNodeCopy = { ...this.state.rootNode };
-
-                if (node.parent.id === this.state.rootNode.id) {
-                  rootNodeCopy.assumptions = rootNodeCopy.assumptions.filter((ass) => {
-                    return ass.id !== node.id;
-                  });
-                } else {
-                  node.parent.assumptions = node.parent.assumptions.filter((ass) => {
-                    return ass.id !== node.id;
-                  });
-                }
-
-                this.setState({
-                  rootNode: rootNodeCopy
+              onClick={this.updateNodeStateOnEvent(node.parent, (parent) => {
+                parent.assumptions = parent.assumptions.filter((ass) => {
+                  return ass.id !== node.id;
                 });
-              }}
+              })}
             >
               -
           </button> : null}
           </div >
-          <div className='inference-line'>
-
-          </div>
+          {proofSummary ? (
+            <div className='proof-summary'>
+              <div
+                className={`inference-line line-type-${node.lineType} ${node.lineDoubled ? 'line-doubled' : ''}`}
+                onClick={this.updateNodeStateOnEvent(node, (node) => {
+                  const LINE_TYPES = ['none', 'single', 'dotted', 'dashed'];
+                  node.lineType = LINE_TYPES[(LINE_TYPES.indexOf(node.lineType) + 1) % LINE_TYPES.length];
+                  if (node.lineType === 'none') {
+                    node.lineDoubled = !node.lineDoubled;
+                  }
+                })}
+              />
+              <div className={`proof-summary-rule-name rule-name`}>
+                {this.renderLatexInput(node, node.ruleNameInput, true)}
+              </div>
+            </div>
+          ) : (
+              <div
+                className={`inference-line line-type-${node.lineType} ${node.lineDoubled ? 'line-doubled' : ''}`}
+                onClick={this.updateNodeStateOnEvent(node, (node) => {
+                  const LINE_TYPES = ['none', 'single', 'dotted', 'dashed'];
+                  node.lineType = LINE_TYPES[(LINE_TYPES.indexOf(node.lineType) + 1) % LINE_TYPES.length];
+                  if (node.lineType === 'none') {
+                    node.lineDoubled = !node.lineDoubled;
+                  }
+                })}
+              />
+            )}
           <div
             className='conclusion'
-            onBlur={() => {
-              let rootNodeCopy = { ...this.state.rootNode };
-
-              if (node.id === this.state.rootNode.id) {
-                rootNodeCopy.conclusionFocused = false;
-              } else {
-                node.conclusionFocused = false;
-              }
-
-              this.setState({
-                rootNode: rootNodeCopy
-              });
-            }}
-            onClick={() => {
-              let rootNodeCopy = { ...this.state.rootNode };
-
-              if (node.id === this.state.rootNode.id) {
-                rootNodeCopy.conclusionFocused = true;
-              } else {
-                node.conclusionFocused = true;
-              }
-
-              this.setState({
-                rootNode: rootNodeCopy
-              });
-            }}
           >
-            {conclusion}
+            {this.renderLatexInput(node, node.conclusionInput, false)}
           </div>
         </div>
-        <div
-          className='rule-name'
-          onBlur={() => {
-            let rootNodeCopy = { ...this.state.rootNode };
-
-            if (node.id === this.state.rootNode.id) {
-              rootNodeCopy.ruleNameFocused = false;
-            } else {
-              node.ruleNameFocused = false;
-            }
-
-            this.setState({
-              rootNode: rootNodeCopy
-            });
-          }}
-          onClick={() => {
-            let rootNodeCopy = { ...this.state.rootNode };
-
-            if (node.id === this.state.rootNode.id) {
-              rootNodeCopy.ruleNameFocused = true;
-            } else {
-              node.ruleNameFocused = true;
-            }
-
-            this.setState({
-              rootNode: rootNodeCopy
-            });
-          }}
-        >
-          {ruleName}
-        </div>
+        {
+          !proofSummary &&
+          <div className={`rule-name`}>
+            {this.renderLatexInput(node, node.ruleNameInput, true)}
+          </div>
+        }
       </div >
     );
   }
 
   generateNodeSource(node, tablevel, tab) {
-    let nodeSource = tab.repeat(tablevel) + `\\prftree`;
+    const proofSummary = node.lineDoubled && node.lineType === 'none';
 
-    if (node.label !== '') {
-      nodeSource += `[l]{${node.label}}`;
+    let nodeSource = tab.repeat(tablevel) + (proofSummary ? `\\prfsummary` : `\\prftree`);
+
+
+    if (node.labelInput.value !== '') {
+      nodeSource += `[l]{${node.labelInput.value}}`;
     }
 
-    if (node.ruleName !== '') {
-      nodeSource += `[r]{${node.ruleName}}`;
+    if (node.ruleNameInput.value !== '') {
+      if (proofSummary) {
+        nodeSource += `[${node.ruleNameInput.value}]`;
+      } else {
+        nodeSource += `[r]{${node.ruleNameInput.value}}`;
+      }
     }
 
     nodeSource += '\n';
@@ -315,7 +286,7 @@ class LiveEditor extends React.Component {
 
       // add conclusion
       nodeSource += tab.repeat(tablevel);
-      nodeSource += `{ ${node.conclusion} }\n`;
+      nodeSource += `{ ${node.conclusionInput.value} }\n`;
 
     } else {
 
@@ -332,7 +303,7 @@ class LiveEditor extends React.Component {
 
       // add conclusion
       nodeSource += tab.repeat(tablevel);
-      nodeSource += `{ ${node.conclusion} }\n`;
+      nodeSource += `{ ${node.conclusionInput.value} }\n`;
     }
 
     return nodeSource;
@@ -340,6 +311,7 @@ class LiveEditor extends React.Component {
 
   render() {
     const rootNode = this.state.rootNode;
+    const errorMsg = this.state.focusedInput ? this.state.focusedInput.errorMsg : '';
 
     return (
       <Split
@@ -354,7 +326,16 @@ class LiveEditor extends React.Component {
         direction="horizontal"
         cursor="col-resize"
       >
-        <InputPane rootNode={this.renderNode(rootNode, [])} />
+        <InputPane
+          rootNode={this.renderNode(rootNode, [])}
+          errorMsg={errorMsg}
+          onViewClick={() => {
+            console.log('test');
+            this.setState({
+              focusedInput: null
+            });
+          }}
+        />
         <OutputPane outputSource={this.generateNodeSource(rootNode, 0, '    ')} />
       </Split>
     )

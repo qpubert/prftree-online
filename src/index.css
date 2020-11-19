@@ -17,6 +17,11 @@
     font-size: 1em;
 }
 
+.left-pane {
+    display: flex;
+    flex-direction: column;
+}
+
 .input-pane {
     overflow: scroll;
     display: flex;
@@ -27,6 +32,11 @@
     width: fit-content;
     height: fit-content;
     margin: auto;
+}
+
+.error-message-pane {
+    resize: none;
+    color: red;
 }
 
 .output-pane {
@@ -44,10 +54,9 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    margin-left: 5px;
-    margin-right: 5px;
-
-    min-width: 50px;
+    margin-left: 0.5em;
+    margin-right: 0.5em;
+    align-items: center;
 }
 
 .assumptions {
@@ -60,7 +69,7 @@
 .assumptions button {
     font-family: 'Courier New', Courier, monospace;
     width: 2ch;
-    border: 1px solid transparent;
+    border: none;
     padding: 0;
     margin-bottom: 5px;
     margin-left: auto;
@@ -72,9 +81,21 @@
     background-color: lightgray;
 }
 
+.not-empty-assumptions {
+    transform: translateX(0.7em);
+}
+
+.assumptions .not-empty-assumptions {
+    transform: translateX(1.15em);
+}
+
 .label {
     height: fit-content;
     padding-bottom: 1em;
+}
+
+.label-higher {
+    padding-bottom: 2em;
 }
 
 .label input {
@@ -92,6 +113,10 @@
     padding-bottom: 1em;
 }
 
+.rule-name-higher {
+    padding-bottom: 2em;
+}
+
 .rule-name input {
     border: 1px solid transparent;
     margin: 1px;
@@ -102,16 +127,68 @@
     text-align: center;
 }
 
-.inference-line {
-    border: 1px solid black;
-
-    top: 2px;
-    bottom: 2px;
-    left: 0px;
-    right: 0px;
+.proof-summary {
+    display: flex;
+    flex-direction: row;
 }
+
+.proof-summary .inference-line {
+    margin-top: 0.2em;
+    margin-left: 0.2em;
+    margin-right: 0.2em;
+    align-self: center;
+}
+
+.proof-summary-label {
+    position: absolute;
+    transform: translateX(-100%) translateY(0.5em);
+}
+
+.proof-summary-rule-name {
+    position: absolute;
+    transform: translateX(0.5em) translateY(0.5em);
+}
+
+.inference-line {
+    width: 100%;
+}
+
+.line-doubled {
+    height: 0.25em;
+}
+
+.line-type-single {
+    border-top: 1px solid black;
+    border-bottom: 1px solid black;
+}
+
+.line-type-dotted {
+    border-top: 1px dotted black;
+    border-bottom: 1px dotted black;
+}
+
+.line-type-dashed {
+    border-top: 1px dashed black;
+    border-bottom: 1px dashed black;
+}
+
+.line-type-none {
+    border-top: 1px dotted lightgray;
+    border-bottom: 1px dotted lightgray;
+}
+
+.line-type-none.line-doubled {
+    width: 2px;
+    height: 2em;
+    border: none;
+    background-image: linear-gradient(to bottom, #333 20%, rgba(255, 255, 255, 0) 0%);
+    background-position: top;
+    background-size: 2px 0.5em;
+    background-repeat: repeat-y;
+}
+
 .conclusion {
-    padding: 2px;
+    padding-top: 0.2em;
 
     text-align: center;
 }
@@ -128,6 +205,10 @@
 
 .conclusion input:focus {
     border: 1px solid grey;
+}
+
+.invalid-latex-input {
+    color: red;
 }
 
 /*
