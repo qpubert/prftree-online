@@ -157,7 +157,7 @@
     height: 0.25em;
 }
 
-.line-type-single {
+.line-type-straight {
     border-top: 1px solid black;
     border-bottom: 1px solid black;
 }

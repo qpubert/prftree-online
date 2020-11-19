@@ -86,7 +86,7 @@ class LiveEditor extends React.Component {
       ruleNameInput: this.createBlankLatexInput(),
       conclusionInput: this.createBlankLatexInput(),
 
-      lineType: 'single',
+      lineType: 'straight',
       lineDoubled: false
     };
   }
@@ -223,7 +223,7 @@ class LiveEditor extends React.Component {
               <div
                 className={`inference-line line-type-${node.lineType} ${node.lineDoubled ? 'line-doubled' : ''}`}
                 onClick={this.updateNodeStateOnEvent(node, (node) => {
-                  const LINE_TYPES = ['none', 'single', 'dotted', 'dashed'];
+                  const LINE_TYPES = ['none', 'straight', 'dotted', 'dashed'];
                   node.lineType = LINE_TYPES[(LINE_TYPES.indexOf(node.lineType) + 1) % LINE_TYPES.length];
                   if (node.lineType === 'none') {
                     node.lineDoubled = !node.lineDoubled;
@@ -238,7 +238,7 @@ class LiveEditor extends React.Component {
               <div
                 className={`inference-line line-type-${node.lineType} ${node.lineDoubled ? 'line-doubled' : ''}`}
                 onClick={this.updateNodeStateOnEvent(node, (node) => {
-                  const LINE_TYPES = ['none', 'single', 'dotted', 'dashed'];
+                  const LINE_TYPES = ['none', 'straight', 'dotted', 'dashed'];
                   node.lineType = LINE_TYPES[(LINE_TYPES.indexOf(node.lineType) + 1) % LINE_TYPES.length];
                   if (node.lineType === 'none') {
                     node.lineDoubled = !node.lineDoubled;
@@ -267,15 +267,32 @@ class LiveEditor extends React.Component {
 
     let nodeSource = tab.repeat(tablevel) + (proofSummary ? `\\prfsummary` : `\\prftree`);
 
-
-    if (node.labelInput.value !== '') {
-      nodeSource += `[l]{${node.labelInput.value}}`;
-    }
-
-    if (node.ruleNameInput.value !== '') {
-      if (proofSummary) {
+    if (proofSummary) {
+      if (node.ruleNameInput.value !== '') {
         nodeSource += `[${node.ruleNameInput.value}]`;
-      } else {
+      }
+    } else {
+      if (node.lineDoubled) {
+        nodeSource += '[double]';
+      }
+
+      switch (node.lineType) {
+        case 'none': {
+          nodeSource += '[noline]';
+          break;
+        }
+        case 'straight': break;
+        default: {
+          nodeSource += `[${node.lineType}]`;
+          break;
+        }
+      }
+
+      if (node.labelInput.value !== '') {
+        nodeSource += `[l]{${node.labelInput.value}}`;
+      }
+
+      if (node.ruleNameInput.value !== '') {
         nodeSource += `[r]{${node.ruleNameInput.value}}`;
       }
     }
