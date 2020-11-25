@@ -26,7 +26,15 @@
     overflow: scroll;
     display: flex;
     align-items: center;
+
+    position: relative;
 } 
+
+#history-buttons {
+    position: absolute;
+    left: 1em;
+    top: 1em;
+}
 
 .tree-wrapper {
     width: fit-content;

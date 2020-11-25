@@ -4,15 +4,29 @@ import PropTypes from 'prop-types';
 import Split from 'react-split';
 import { MathComponent } from 'mathjax-react';
 import { v4 as uuidv4 } from 'uuid';
+import clone from 'clone';
 import './index.css';
 
 class InputPane extends React.Component {
   render() {
+    const undoDisabled = (this.props.onUndo === false);
+    const redoDisabled = (this.props.onRedo === false);
+
     const inputPane = (
       <div
         className="input-pane pane"
         onClick={this.props.onViewClick}
       >
+        <div id="history-buttons">
+          <button
+            onClick={undoDisabled ? undefined : this.props.onUndo} 
+            disabled={undoDisabled}
+          >Undo</button>
+          <button
+            onClick={redoDisabled ? undefined : this.props.onRedo}
+            disabled={redoDisabled}
+          >Redo</button>
+        </div>
         <div className="tree-wrapper">
           {this.props.rootNode}
         </div>
@@ -47,6 +61,8 @@ InputPane.propTypes = {
   rootNode: PropTypes.object.isRequired,
   errorMsg: PropTypes.string.isRequired,
   onViewClick: PropTypes.func.isRequired,
+  onUndo: PropTypes.any.isRequired,
+  onRedo: PropTypes.any.isRequired,
 }
 
 class OutputPane extends React.Component {
@@ -70,15 +86,16 @@ class LiveEditor extends React.Component {
     super(props);
     this.currentLatexInputRef = React.createRef();
     this.state = {
-      rootNode: this.createBlankNode(),
+      history: [this.createBlankNode()],
+      currentVersion: 0,
       focusedInput: null,
       focusWasPerformed: false,
     };
   }
 
-  createBlankNode(parent = null) {
+  createBlankNode(parentId) {
     return {
-      parent: parent,
+      parentId: parentId,
       id: uuidv4(),
 
       assumptions: [],
@@ -99,24 +116,70 @@ class LiveEditor extends React.Component {
     };
   }
 
-  updateNodeStateOnEvent(node, func) {
+  updateNodeStateOnEvent(save, nodeId, func) {
     return (event) => {
-      let rootNodeCopy = { ...this.state.rootNode };
+      const rootNodeNewVersion = clone(this.state.history[this.state.currentVersion]);
 
-      if (node.id === this.state.rootNode.id) {
-        func(rootNodeCopy, event);
-      } else {
-        func(node, event);
-      }
+      console.log(`previous tree`, this.state.history[this.state.currentVersion]);
+      console.log(`new tree:`, rootNodeNewVersion);
 
-      this.setState({
-        rootNode: rootNodeCopy
-      });
+      const findNodeRec = (currentNode) => {
+        if (currentNode.id === nodeId) {
+          return currentNode;
+        } else {
+          for (const ass of currentNode.assumptions) {
+            const result = findNodeRec(ass);
+            if (result !== undefined) {
+              return result;
+            }
+          }
+        }
+      };
+
+      let nodeVersion = findNodeRec(rootNodeNewVersion);
+      if (nodeVersion === undefined) ;
+
+      func(nodeVersion, event);
+
+      this.setState((state) => ({
+          history: save ?
+            state.history.slice(0, state.currentVersion + 1).concat([rootNodeNewVersion]) :
+            state.history.map((version, versionIndex) => {
+              if (versionIndex === state.currentVersion) {
+                return rootNodeNewVersion;
+              } else {
+                return version;
+              }
+            }),
+          currentVersion: save ?
+            state.currentVersion + 1 :
+            state.currentVersion
+        })
+      );
     };
   }
 
+  updateLatexInputStateOnEvent(save, nodeId, latexInputId, func) {
+    return this.updateNodeStateOnEvent(save, nodeId, (newNodeVersion, event) => {
+      switch (latexInputId) {
+        case newNodeVersion.labelInput.id: {
+          func(newNodeVersion.labelInput, event);
+          break;
+        }
+        case newNodeVersion.ruleNameInput.id: {
+          func(newNodeVersion.ruleNameInput, event);
+          break;
+        }
+        case newNodeVersion.conclusionInput.id: {
+          func(newNodeVersion.conclusionInput, event);
+          break;
+        }
+      }
+    });
+  }
+
   renderLatexInput(node, latexInput, smallTextModeEnabled = true) {
-    const dots = smallTextModeEnabled ? '?' : '?';
+    const dots = smallTextModeEnabled ? '□' : '□';
     const focused = this.state.focusedInput && latexInput.id == this.state.focusedInput.id;
     const latexHidden = focused || latexInput.errorMsg !== '';
 
@@ -144,11 +207,11 @@ class LiveEditor extends React.Component {
               `\\small{\\text{${latexInput.value.length === 0 ? dots : latexInput.value}}}` :
               `${latexInput.value.length === 0 ? dots : latexInput.value}`
             }
-            onError={this.updateNodeStateOnEvent(node, (_, errorMsg) => {
-              latexInput.errorMsg = errorMsg;
+            onError={this.updateLatexInputStateOnEvent(false, node.id, latexInput.id, (newLIVer, errorMsg) => {
+              newLIVer.errorMsg = errorMsg;
             })}
-            onSuccess={this.updateNodeStateOnEvent(node, (_, errorMsg) => {
-              latexInput.errorMsg = '';
+            onSuccess={this.updateLatexInputStateOnEvent(false, node.id, latexInput.id, (newLIVer, _) => {
+              newLIVer.errorMsg = '';
             })}
           />
         </div>
@@ -159,8 +222,8 @@ class LiveEditor extends React.Component {
             placeholder={dots}
             defaultValue={latexInput.value}
             style={{ width: `${Math.max(dots.length, latexInput.value.length)}ch` }}
-            onInput={this.updateNodeStateOnEvent(node, (_, event) => {
-              latexInput.value = event.target.value;
+            onInput={this.updateLatexInputStateOnEvent(true, node.id, latexInput.id, (newLIVer, event) => {
+              newLIVer.value = event.target.value;
             })}
             ref={focused ? this.currentLatexInputRef : null}
             onFocus={() => {
@@ -201,16 +264,16 @@ class LiveEditor extends React.Component {
           <div className={`assumptions ${node.assumptions.length === 0 ? '' : 'not-empty-assumptions'}`}>
             {node.assumptions.map((ass, index) => this.renderNode(ass, index))}
             <button
-              onClick={this.updateNodeStateOnEvent(node, (node) => {
-                let newAssumption = this.createBlankNode(node);
-                node.assumptions = node.assumptions.concat([newAssumption]);
+              onClick={this.updateNodeStateOnEvent(true, node.id, (newNodeVer) => {
+                let newAssumption = this.createBlankNode(newNodeVer.id);
+                newNodeVer.assumptions = node.assumptions.concat([newAssumption]);
               })}
             >
               +
-          </button>
-            {node.parent ? <button
-              onClick={this.updateNodeStateOnEvent(node.parent, (parent) => {
-                parent.assumptions = parent.assumptions.filter((ass) => {
+            </button>
+            {node.parentId ? <button
+              onClick={this.updateNodeStateOnEvent(true, node.parentId, (newParentVer) => {
+                newParentVer.assumptions = newParentVer.assumptions.filter((ass) => {
                   return ass.id !== node.id;
                 });
               })}
@@ -222,11 +285,11 @@ class LiveEditor extends React.Component {
             <div className='proof-summary'>
               <div
                 className={`inference-line line-type-${node.lineType} ${node.lineDoubled ? 'line-doubled' : ''}`}
-                onClick={this.updateNodeStateOnEvent(node, (node) => {
+                onClick={this.updateNodeStateOnEvent(true, node.id, (newNodeVer) => {
                   const LINE_TYPES = ['none', 'straight', 'dotted', 'dashed'];
-                  node.lineType = LINE_TYPES[(LINE_TYPES.indexOf(node.lineType) + 1) % LINE_TYPES.length];
-                  if (node.lineType === 'none') {
-                    node.lineDoubled = !node.lineDoubled;
+                  newNodeVer.lineType = LINE_TYPES[(LINE_TYPES.indexOf(newNodeVer.lineType) + 1) % LINE_TYPES.length];
+                  if (newNodeVer.lineType === 'none') {
+                    newNodeVer.lineDoubled = !newNodeVer.lineDoubled;
                   }
                 })}
               />
@@ -237,11 +300,11 @@ class LiveEditor extends React.Component {
           ) : (
               <div
                 className={`inference-line line-type-${node.lineType} ${node.lineDoubled ? 'line-doubled' : ''}`}
-                onClick={this.updateNodeStateOnEvent(node, (node) => {
+                onClick={this.updateNodeStateOnEvent(true, node.id, (newNodeVer) => {
                   const LINE_TYPES = ['none', 'straight', 'dotted', 'dashed'];
-                  node.lineType = LINE_TYPES[(LINE_TYPES.indexOf(node.lineType) + 1) % LINE_TYPES.length];
-                  if (node.lineType === 'none') {
-                    node.lineDoubled = !node.lineDoubled;
+                  newNodeVer.lineType = LINE_TYPES[(LINE_TYPES.indexOf(newNodeVer.lineType) + 1) % LINE_TYPES.length];
+                  if (newNodeVer.lineType === 'none') {
+                    newNodeVer.lineDoubled = !newNodeVer.lineDoubled;
                   }
                 })}
               />
@@ -327,8 +390,10 @@ class LiveEditor extends React.Component {
   }
 
   render() {
-    const rootNode = this.state.rootNode;
+    const rootNode = this.state.history[this.state.currentVersion];
     const errorMsg = this.state.focusedInput ? this.state.focusedInput.errorMsg : '';
+
+    if (rootNode === undefined) debugger;
 
     return (
       <Split
@@ -352,6 +417,16 @@ class LiveEditor extends React.Component {
               focusedInput: null
             });
           }}
+          onUndo={(this.state.currentVersion > 0) && (() => {
+            this.setState((state) => ({
+              currentVersion: state.currentVersion - 1
+            }));
+          })}
+          onRedo={(this.state.currentVersion < (this.state.history.length - 1)) && (() => {
+            this.setState((state) => ({
+              currentVersion: state.currentVersion + 1
+            }));
+          })}
         />
         <OutputPane outputSource={this.generateNodeSource(rootNode, 0, '    ')} />
       </Split>
