@@ -5,6 +5,7 @@ import Split from 'react-split';
 import { MathComponent } from 'mathjax-react';
 import { v4 as uuidv4 } from 'uuid';
 import clone from 'clone';
+import deepEqual from 'deep-equal';
 import './index.css';
 
 class InputPane extends React.Component {
@@ -19,7 +20,7 @@ class InputPane extends React.Component {
       >
         <div id="history-buttons">
           <button
-            onClick={undoDisabled ? undefined : this.props.onUndo} 
+            onClick={undoDisabled ? undefined : this.props.onUndo}
             disabled={undoDisabled}
           >Undo</button>
           <button
@@ -120,9 +121,6 @@ class LiveEditor extends React.Component {
     return (event) => {
       const rootNodeNewVersion = clone(this.state.history[this.state.currentVersion]);
 
-      console.log(`previous tree`, this.state.history[this.state.currentVersion]);
-      console.log(`new tree:`, rootNodeNewVersion);
-
       const findNodeRec = (currentNode) => {
         if (currentNode.id === nodeId) {
           return currentNode;
@@ -136,25 +134,22 @@ class LiveEditor extends React.Component {
         }
       };
 
-      let nodeVersion = findNodeRec(rootNodeNewVersion);
-      if (nodeVersion === undefined) ;
-
-      func(nodeVersion, event);
+      func(findNodeRec(rootNodeNewVersion), event);
 
       this.setState((state) => ({
-          history: save ?
-            state.history.slice(0, state.currentVersion + 1).concat([rootNodeNewVersion]) :
-            state.history.map((version, versionIndex) => {
-              if (versionIndex === state.currentVersion) {
-                return rootNodeNewVersion;
-              } else {
-                return version;
-              }
-            }),
-          currentVersion: save ?
-            state.currentVersion + 1 :
-            state.currentVersion
-        })
+        history: save ?
+          state.history.slice(0, state.currentVersion + 1).concat([rootNodeNewVersion]) :
+          state.history.map((version, versionIndex) => {
+            if (versionIndex === state.currentVersion) {
+              return rootNodeNewVersion;
+            } else {
+              return version;
+            }
+          }),
+        currentVersion: save ?
+          state.currentVersion + 1 :
+          state.currentVersion
+      })
       );
     };
   }
@@ -182,6 +177,7 @@ class LiveEditor extends React.Component {
     const dots = smallTextModeEnabled ? '□' : '□';
     const focused = this.state.focusedInput && latexInput.id == this.state.focusedInput.id;
     const latexHidden = focused || latexInput.errorMsg !== '';
+    const justFocused = focused && (!this.state.focusWasPerformed);
 
     return (
       <div
@@ -222,14 +218,25 @@ class LiveEditor extends React.Component {
             placeholder={dots}
             defaultValue={latexInput.value}
             style={{ width: `${Math.max(dots.length, latexInput.value.length)}ch` }}
-            onInput={this.updateLatexInputStateOnEvent(true, node.id, latexInput.id, (newLIVer, event) => {
+            onInput={this.updateLatexInputStateOnEvent(false, node.id, latexInput.id, (newLIVer, event) => {
               newLIVer.value = event.target.value;
             })}
             ref={focused ? this.currentLatexInputRef : null}
-            onFocus={() => {
+            onFocus={this.updateLatexInputStateOnEvent(justFocused, node.id, latexInput.id, (newLIVer, event) => {
               this.setState({
                 focusedInput: latexInput,
               });
+            })}
+            onBlur={(event) => {
+              if (deepEqual(
+                this.state.history[this.state.currentVersion],
+                this.state.history[this.state.currentVersion - 1]
+              )) {
+                this.setState((state) => ({
+                  history: state.history.filter((_, index) => (index !== state.currentVersion)),
+                  currentVersion: state.currentVersion - 1
+                }));
+              }
             }}
           />
         </div>}
@@ -238,7 +245,6 @@ class LiveEditor extends React.Component {
   }
 
   componentDidUpdate() {
-    console.log("component did update");
     if (this.currentLatexInputRef.current && !this.state.focusWasPerformed) {
       this.currentLatexInputRef.current.focus();
       this.currentLatexInputRef.current.setSelectionRange(0, this.currentLatexInputRef.current.value.length);
@@ -412,7 +418,6 @@ class LiveEditor extends React.Component {
           rootNode={this.renderNode(rootNode, [])}
           errorMsg={errorMsg}
           onViewClick={() => {
-            console.log('test');
             this.setState({
               focusedInput: null
             });
