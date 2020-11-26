@@ -99,7 +99,7 @@
 
 .label {
     height: fit-content;
-    padding-bottom: 1em;
+    padding-bottom: 0.8em;
 }
 
 .label-higher {
@@ -118,7 +118,7 @@
 
 .rule-name {
     height: fit-content;
-    padding-bottom: 1em;
+    padding-bottom: 0.8em;
 }
 
 .rule-name-higher {

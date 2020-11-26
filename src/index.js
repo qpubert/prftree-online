@@ -89,7 +89,7 @@ class LiveEditor extends React.Component {
     this.state = {
       history: [this.createBlankNode()],
       currentVersion: 0,
-      focusedInput: null,
+      focusedInputId: null,
       focusWasPerformed: false,
     };
   }
@@ -117,24 +117,45 @@ class LiveEditor extends React.Component {
     };
   }
 
+  findNodeRec(currentNode, pred) {
+    if (pred(currentNode)) {
+      return currentNode;
+    } else {
+      for (const ass of currentNode.assumptions) {
+        const result = this.findNodeRec(ass, pred);
+        if (result !== undefined) {
+          return result;
+        }
+      }
+    }
+  }
+
+  findLatexInputRec(rootNode, pred) {
+    const candidateNode = this.findNodeRec(rootNode, (currNode) => {
+      return [
+        rootNode.labelInput, 
+        rootNode.ruleNameInput, 
+        rootNode.conclusionInput
+      ].findIndex(pred) !== -1;
+    });
+
+    if (candidateNode === undefined)
+      return;
+
+    return [
+      candidateNode.labelInput, 
+      candidateNode.ruleNameInput, 
+      candidateNode.conclusionInput
+    ].find(pred); 
+  }
+
   updateNodeStateOnEvent(save, nodeId, func) {
     return (event) => {
       const rootNodeNewVersion = clone(this.state.history[this.state.currentVersion]);
 
-      const findNodeRec = (currentNode) => {
-        if (currentNode.id === nodeId) {
-          return currentNode;
-        } else {
-          for (const ass of currentNode.assumptions) {
-            const result = findNodeRec(ass);
-            if (result !== undefined) {
-              return result;
-            }
-          }
-        }
-      };
-
-      func(findNodeRec(rootNodeNewVersion), event);
+      func(
+        this.findNodeRec(rootNodeNewVersion, currNode => currNode.id === nodeId),
+        event);
 
       this.setState((state) => ({
         history: save ?
@@ -156,26 +177,13 @@ class LiveEditor extends React.Component {
 
   updateLatexInputStateOnEvent(save, nodeId, latexInputId, func) {
     return this.updateNodeStateOnEvent(save, nodeId, (newNodeVersion, event) => {
-      switch (latexInputId) {
-        case newNodeVersion.labelInput.id: {
-          func(newNodeVersion.labelInput, event);
-          break;
-        }
-        case newNodeVersion.ruleNameInput.id: {
-          func(newNodeVersion.ruleNameInput, event);
-          break;
-        }
-        case newNodeVersion.conclusionInput.id: {
-          func(newNodeVersion.conclusionInput, event);
-          break;
-        }
-      }
+      func(this.findLatexInputRec(newNodeVersion, li => li.id === latexInputId), event);
     });
   }
 
   renderLatexInput(node, latexInput, smallTextModeEnabled = true) {
     const dots = smallTextModeEnabled ? '□' : '□';
-    const focused = this.state.focusedInput && latexInput.id == this.state.focusedInput.id;
+    const focused = this.state.focusedInputId && latexInput.id == this.state.focusedInputId;
     const latexHidden = focused || latexInput.errorMsg !== '';
     const justFocused = focused && (!this.state.focusWasPerformed);
 
@@ -191,7 +199,7 @@ class LiveEditor extends React.Component {
           tabIndex={0}
           onFocus={(_) => {
             this.setState({
-              focusedInput: latexInput,
+              focusedInputId: latexInput.id,
               focusWasPerformed: false,
             });
           }}
@@ -204,6 +212,7 @@ class LiveEditor extends React.Component {
               `${latexInput.value.length === 0 ? dots : latexInput.value}`
             }
             onError={this.updateLatexInputStateOnEvent(false, node.id, latexInput.id, (newLIVer, errorMsg) => {
+              debugger;
               newLIVer.errorMsg = errorMsg;
             })}
             onSuccess={this.updateLatexInputStateOnEvent(false, node.id, latexInput.id, (newLIVer, _) => {
@@ -224,7 +233,7 @@ class LiveEditor extends React.Component {
             ref={focused ? this.currentLatexInputRef : null}
             onFocus={this.updateLatexInputStateOnEvent(justFocused, node.id, latexInput.id, (newLIVer, event) => {
               this.setState({
-                focusedInput: latexInput,
+                focusedInputId: latexInput.id,
               });
             })}
             onBlur={(event) => {
@@ -397,7 +406,10 @@ class LiveEditor extends React.Component {
 
   render() {
     const rootNode = this.state.history[this.state.currentVersion];
-    const errorMsg = this.state.focusedInput ? this.state.focusedInput.errorMsg : '';
+    const focusedInput = this.findLatexInputRec(rootNode, li => li.id === this.state.focusedInputId);
+    const errorMsg = focusedInput ? focusedInput.errorMsg : '';
+
+    console.log(`errorMsg ${errorMsg} focusedInput ${focusedInput}`);
 
     if (rootNode === undefined) debugger;
 
@@ -419,7 +431,7 @@ class LiveEditor extends React.Component {
           errorMsg={errorMsg}
           onViewClick={() => {
             this.setState({
-              focusedInput: null
+              focusedInputId: null
             });
           }}
           onUndo={(this.state.currentVersion > 0) && (() => {
