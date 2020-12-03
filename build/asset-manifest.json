@@ -1,0 +1,20 @@
+{
+  "files": {
+    "main.css": "/prftree-online/static/css/main.a16b1ce9.chunk.css",
+    "main.js": "/prftree-online/static/js/main.c48c9b98.chunk.js",
+    "main.js.map": "/prftree-online/static/js/main.c48c9b98.chunk.js.map",
+    "runtime-main.js": "/prftree-online/static/js/runtime-main.6f4ef14c.js",
+    "runtime-main.js.map": "/prftree-online/static/js/runtime-main.6f4ef14c.js.map",
+    "static/js/2.e4ff4936.chunk.js": "/prftree-online/static/js/2.e4ff4936.chunk.js",
+    "static/js/2.e4ff4936.chunk.js.map": "/prftree-online/static/js/2.e4ff4936.chunk.js.map",
+    "index.html": "/prftree-online/index.html",
+    "static/css/main.a16b1ce9.chunk.css.map": "/prftree-online/static/css/main.a16b1ce9.chunk.css.map",
+    "static/js/2.e4ff4936.chunk.js.LICENSE.txt": "/prftree-online/static/js/2.e4ff4936.chunk.js.LICENSE.txt"
+  },
+  "entrypoints": [
+    "static/js/runtime-main.6f4ef14c.js",
+    "static/js/2.e4ff4936.chunk.js",
+    "static/css/main.a16b1ce9.chunk.css",
+    "static/js/main.c48c9b98.chunk.js"
+  ]
+}
