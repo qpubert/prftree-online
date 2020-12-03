@@ -133,9 +133,9 @@ class LiveEditor extends React.Component {
   findLatexInputRec(rootNode, pred) {
     const candidateNode = this.findNodeRec(rootNode, (currNode) => {
       return [
-        rootNode.labelInput, 
-        rootNode.ruleNameInput, 
-        rootNode.conclusionInput
+        currNode.labelInput, 
+        currNode.ruleNameInput, 
+        currNode.conclusionInput
       ].findIndex(pred) !== -1;
     });
 
@@ -406,7 +406,9 @@ class LiveEditor extends React.Component {
 
   render() {
     const rootNode = this.state.history[this.state.currentVersion];
-    const focusedInput = this.findLatexInputRec(rootNode, li => li.id === this.state.focusedInputId);
+    const focusedInput = this.findLatexInputRec(rootNode, li => {
+      return li.id === this.state.focusedInputId;
+    });
     const errorMsg = focusedInput ? focusedInput.errorMsg : '';
 
     console.log(`errorMsg ${errorMsg} focusedInput ${focusedInput}`);
